@@ -1,0 +1,9 @@
+/* purgecss start ignore */
+@tailwind base;
+/* purgecss end ignore */
+@tailwind components;
+
+#__next {
+  @apply w-full min-h-screen font-sans antialiased bg-gray-200;
+}
+@tailwind utilities;
