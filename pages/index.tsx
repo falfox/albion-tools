@@ -8,12 +8,17 @@ import classnames from "classnames";
 import "../styles/main.css";
 
 const Index = () => {
-  const { register, handleSubmit, setValue, reset } = useForm();
+  const { register, handleSubmit, setValue } = useForm();
   const [items, setItems] = useState([]);
   const [strats, setStrats] = useState({});
   const [isLoading, setLoading] = useState(false);
 
-  const options = Fishes.map((f) => ({
+  const options = Fishes.filter(
+    (f) =>
+      !["T1_FISHSAUCE_LEVEL1", "T1_FISHSAUCE_LEVEL3"].includes(
+        f.ID
+      )
+  ).map((f) => ({
     label: `T${f.Tier} - ${f.Name}`,
     value: f.ID,
     data: f,
@@ -43,7 +48,7 @@ const Index = () => {
   const calculate = async () => {
     setLoading(true);
     const ids = items.map((i) => i.fish.value);
-    ids.push(["T1_FISHCHOPS", "T1_FISHSAUCE_LEVEL1", "T1_FISHSAUCE_LEVEL3"]);
+    ids.push(["T1_SEAWEED", "T1_FISHCHOPS", "T1_FISHSAUCE_LEVEL1", "T1_FISHSAUCE_LEVEL3"]);
 
     const url = `https://www.albion-online-data.com/api/v2/stats/prices/${ids.join()}?locations=Lymhurst&qualities=0`;
     console.log(url);
@@ -53,29 +58,33 @@ const Index = () => {
     // Raw Strat
     const rawStrat = items.reduce((acc, cur) => {
       const price =
-        prices.find((p) => p.item_id === cur.fish.value).sell_price_min *
+        prices.find((p) => p.item_id === cur.fish.value).buy_price_max *
         parseInt(cur.amount) *
         0.94;
       return acc + price;
     }, 0);
 
     // Chopped Fish Strat
+    const choppedFishAmount = parseInt(
+      items.find((i) => i.fish.value === "T1_FISHCHOPS")?.amount ?? 0
+    );
+
     const seaweedAmount = parseInt(
       items.find((i) => i.fish.value === "T1_SEAWEED")?.amount ?? 0
     );
 
     const seaweedPrice = prices.find((p) => p.item_id === "T1_SEAWEED")
-      .sell_price_min;
+      .buy_price_max;
 
     const choppedFishPrice = prices.find((p) => p.item_id === "T1_FISHCHOPS")
-      .sell_price_min;
+      .buy_price_max;
 
     const totalChoppedFish = items.reduce((acc, cur) => {
       const inChoppedFish =
         parseInt(cur.fish.data["Chopped Fish"]) * parseInt(cur.amount);
 
       return acc + inChoppedFish;
-    }, 0);
+    }, 0) + choppedFishAmount;
 
     console.log(totalChoppedFish);
 
@@ -86,7 +95,7 @@ const Index = () => {
     // Basic Fish Sauce Strat
     const basicSaucePrice = prices.find(
       (p) => p.item_id === "T1_FISHSAUCE_LEVEL1"
-    ).sell_price_min;
+    ).buy_price_max;
 
     const basicSauceAmount = Math.min(
       Math.floor(totalChoppedFish / 15),
@@ -108,7 +117,7 @@ const Index = () => {
     // Special Fish Sauce Strat
     const specialSaucePrice = prices.find(
       (p) => p.item_id === "T1_FISHSAUCE_LEVEL3"
-    ).sell_price_min;
+    ).buy_price_max;
 
     const specialSauceAmount = Math.min(
       Math.floor(totalChoppedFish / 125),
@@ -149,7 +158,7 @@ const Index = () => {
       "Special Fish Sauce + Remainder Sell": {
         profit: specialSauceStrat.toFixed(),
         details: {
-          T1_FISHSAUCE_LEVEL1: specialSauceAmount,
+          T1_FISHSAUCE_LEVEL3: specialSauceAmount,
           T1_FISHCHOPS: choppedFishRemainderS,
           T1_SEAWEED: seaweedRemainderS,
         },
@@ -162,7 +171,7 @@ const Index = () => {
   return (
     <>
       <Head>
-        <title>Foo</title>
+        <title>Albion Fisherman's Calculator</title>
         <link href="https://rsms.me/inter/inter.css" rel="stylesheet" />
       </Head>
 
@@ -292,10 +301,13 @@ const Index = () => {
                         </ul>
                       </div>
                       <span
-                        className={classnames("text-sm font-semibold tracking-widest", {
-                          "text-green-600": value.profit > -1,
-                          "text-red-600": value.profit < 0,
-                        })}
+                        className={classnames(
+                          "text-sm font-semibold tracking-widest",
+                          {
+                            "text-green-600": value.profit > -1,
+                            "text-red-600": value.profit < 0,
+                          }
+                        )}
                       >
                         {value.profit}
                       </span>
