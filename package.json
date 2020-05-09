@@ -29,7 +29,7 @@
     "@types/react-select": "^3.0.11",
     "autoprefixer": "^9.7.3",
     "cssnano": "^4.1.10",
-    "tailwindcss": "^1.2.0",
+    "tailwindcss": "^1.4.6",
     "typescript": "^3.8.3"
   }
 }

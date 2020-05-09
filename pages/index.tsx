@@ -10,14 +10,11 @@ import "../styles/main.css";
 const Index = () => {
   const { register, handleSubmit, setValue } = useForm();
   const [items, setItems] = useState([]);
-  const [strats, setStrats] = useState({});
+  const [strats, setStrats] = useState([]);
   const [isLoading, setLoading] = useState(false);
 
   const options = Fishes.filter(
-    (f) =>
-      !["T1_FISHSAUCE_LEVEL1", "T1_FISHSAUCE_LEVEL3"].includes(
-        f.ID
-      )
+    (f) => !["T1_FISHSAUCE_LEVEL1", "T1_FISHSAUCE_LEVEL3"].includes(f.ID)
   ).map((f) => ({
     label: `T${f.Tier} - ${f.Name}`,
     value: f.ID,
@@ -28,14 +25,6 @@ const Index = () => {
     selectedOption: [],
   });
 
-  const onSubmit = (data) => {
-    const item = {
-      ...data,
-    };
-
-    setItems([...items, item]);
-  };
-
   const handleMultiChange = (selectedOption) => {
     setValue("fish", selectedOption);
     setReactSelect({ selectedOption });
@@ -45,126 +34,88 @@ const Index = () => {
     register({ name: "fish", required: true });
   }, []);
 
+  const handleAmountChange = (id, amount) => {
+    setItems(
+      items.map((f) => {
+        if (f.fish.value !== id) return f;
+
+        return {
+          ...f,
+          amount,
+        };
+      })
+    );
+  };
+
+  const formatNumber = (number) =>
+    new Intl.NumberFormat("en-ID", { minimumFractionDigits: 0 })
+      .format(number.toFixed())
+      .replace(/\,/, ".");
+
+  const onSubmit = (data) => {
+    const item = {
+      ...data,
+    };
+
+    if (items.find((f) => f.fish.value === item.fish.value)) {
+      setItems(
+        items.map((f) => {
+          if (f.fish.value !== item.fish.value) return f;
+
+          return {
+            ...f,
+            amount: item.amount,
+          };
+        })
+      );
+    } else {
+      setItems([...items, item]);
+    }
+  };
+
   const calculate = async () => {
     setLoading(true);
     const ids = items.map((i) => i.fish.value);
-    ids.push(["T1_SEAWEED", "T1_FISHCHOPS", "T1_FISHSAUCE_LEVEL1", "T1_FISHSAUCE_LEVEL3"]);
+    ids.push(
+      "T1_SEAWEED",
+      "T1_FISHCHOPS",
+      "T1_FISHSAUCE_LEVEL1",
+      "T1_FISHSAUCE_LEVEL3"
+    );
 
     const url = `https://www.albion-online-data.com/api/v2/stats/prices/${ids.join()}?locations=Lymhurst&qualities=0`;
-    console.log(url);
     const response = await fetch(url);
     const prices = await response.json();
-
-    // Raw Strat
-    const rawStrat = items.reduce((acc, cur) => {
-      const price =
-        prices.find((p) => p.item_id === cur.fish.value).buy_price_max *
-        parseInt(cur.amount) *
-        0.94;
-      return acc + price;
-    }, 0);
-
-    // Chopped Fish Strat
-    const choppedFishAmount = parseInt(
-      items.find((i) => i.fish.value === "T1_FISHCHOPS")?.amount ?? 0
-    );
-
-    const seaweedAmount = parseInt(
-      items.find((i) => i.fish.value === "T1_SEAWEED")?.amount ?? 0
-    );
-
-    const seaweedPrice = prices.find((p) => p.item_id === "T1_SEAWEED")
-      .buy_price_max;
 
     const choppedFishPrice = prices.find((p) => p.item_id === "T1_FISHCHOPS")
       .buy_price_max;
 
-    const totalChoppedFish = items.reduce((acc, cur) => {
-      const inChoppedFish =
-        parseInt(cur.fish.data["Chopped Fish"]) * parseInt(cur.amount);
+    const results = items.map((item) => {
+      const rawPrice =
+        prices.find((p) => p.item_id === item.fish.value).buy_price_max *
+        parseInt(item.amount) *
+        0.94;
 
-      return acc + inChoppedFish;
-    }, 0) + choppedFishAmount;
+      let choppedPrice = 0;
+      if (parseInt(item.fish.data["Chopped Fish"]) > 0) {
+        const choppedFishAmount = parseInt(
+          items.find((i) => i.fish.value === item.fish.value)?.amount ?? "0"
+        );
 
-    console.log(totalChoppedFish);
+        choppedPrice = choppedFishAmount * choppedFishPrice;
+      }
 
-    const choppedStrat =
-      totalChoppedFish * choppedFishPrice * 0.94 +
-      seaweedAmount * seaweedPrice * 0.94;
-
-    // Basic Fish Sauce Strat
-    const basicSaucePrice = prices.find(
-      (p) => p.item_id === "T1_FISHSAUCE_LEVEL1"
-    ).buy_price_max;
-
-    const basicSauceAmount = Math.min(
-      Math.floor(totalChoppedFish / 15),
-      Math.floor(seaweedAmount / 1)
-    );
-
-    console.log("Sauce", basicSauceAmount);
-
-    const choppedFishRemainder = totalChoppedFish - 15 * basicSauceAmount;
-    const seaweedRemainder = seaweedAmount - 1 * basicSauceAmount;
-
-    console.log(choppedFishRemainder, seaweedRemainder);
-
-    const basicSauceStrat =
-      basicSauceAmount * basicSaucePrice * 0.94 +
-      choppedFishRemainder * choppedFishPrice * 0.94 +
-      seaweedRemainder * seaweedPrice * 0.94;
-
-    // Special Fish Sauce Strat
-    const specialSaucePrice = prices.find(
-      (p) => p.item_id === "T1_FISHSAUCE_LEVEL3"
-    ).buy_price_max;
-
-    const specialSauceAmount = Math.min(
-      Math.floor(totalChoppedFish / 125),
-      Math.floor(seaweedAmount / 9)
-    );
-
-    console.log("Sauce", specialSauceAmount);
-
-    const choppedFishRemainderS = totalChoppedFish - 125 * specialSauceAmount;
-    const seaweedRemainderS = seaweedAmount - 9 * specialSauceAmount;
-
-    console.log(choppedFishRemainder, seaweedRemainder);
-
-    const specialSauceStrat =
-      specialSauceAmount * specialSaucePrice * 0.94 +
-      choppedFishRemainderS * choppedFishPrice * 0.94 +
-      seaweedRemainderS * seaweedPrice * 0.94;
-
-    setStrats({
-      "Raw Sell": {
-        profit: rawStrat.toFixed(),
-        details: {},
-      },
-      "Chopped Fish Sell": {
-        profit: choppedStrat.toFixed(),
-        details: {
-          T1_FISHCHOPS: totalChoppedFish,
-        },
-      },
-      "Basic Fish Sauce + Remainder Sell": {
-        profit: basicSauceStrat.toFixed(),
-        details: {
-          T1_FISHSAUCE_LEVEL1: basicSauceAmount,
-          T1_FISHCHOPS: choppedFishRemainder,
-          T1_SEAWEED: seaweedRemainder,
-        },
-      },
-      "Special Fish Sauce + Remainder Sell": {
-        profit: specialSauceStrat.toFixed(),
-        details: {
-          T1_FISHSAUCE_LEVEL3: specialSauceAmount,
-          T1_FISHCHOPS: choppedFishRemainderS,
-          T1_SEAWEED: seaweedRemainderS,
-        },
-      },
+      return {
+        id: item.fish.value,
+        amount: item.amount,
+        raw: rawPrice,
+        chopped: choppedPrice,
+        best: Math.max(rawPrice, choppedPrice),
+      };
     });
-    console.log(rawStrat, choppedStrat, basicSauceStrat, specialSauceStrat);
+    console.log(results);
+    setStrats(results);
+
     setLoading(false);
   };
 
@@ -231,36 +182,43 @@ const Index = () => {
                 <div className="flex flex-wrap text-gray-600">
                   {items.map((i, ind) => (
                     <div
-                      className="relative flex items-center justify-center w-20 h-20 m-2 border border-gray-400 rounded group"
+                      className="flex flex-col items-center w-20 mx-2 space-y-2"
                       key={ind}
                     >
-                      <img
-                        className="transition-opacity duration-200 ease-in-out group-hover:opacity-0"
-                        src={`https://gameinfo.albiononline.com/api/gameinfo/items/${i.fish.value}`}
-                        alt={i.fish.label}
-                      />
-                      <div className="absolute bottom-0 right-0 z-30 flex items-center justify-center w-6 h-6 -mb-2 -mr-2 text-xs font-medium text-white bg-blue-600 rounded-full">
-                        {i.amount}
-                      </div>
-                      <button
-                        type="button"
-                        className="absolute inset-0 z-20 flex items-center justify-center w-full transition-opacity duration-200 ease-in-out bg-gray-900 rounded opacity-0 group-hover:opacity-100"
-                        onClick={() => {
-                          setItems((it) =>
-                            it.filter((item) => {
-                              return item.fish.value !== i.fish.value;
-                            })
-                          );
-                        }}
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          className="w-8 h-8 text-white fill-current"
+                      <div className="relative group">
+                        <img
+                          className="object-cover w-16 transition-opacity duration-200 ease-in-out group-hover:opacity-0"
+                          src={`https://gameinfo.albiononline.com/api/gameinfo/items/${i.fish.value}`}
+                          alt={i.fish.label}
+                        />
+                        <button
+                          type="button"
+                          className="absolute inset-0 z-20 flex items-center justify-center w-full transition-opacity duration-200 ease-in-out bg-gray-900 rounded opacity-0 group-hover:opacity-100"
+                          onClick={() => {
+                            setItems((it) =>
+                              it.filter((item) => {
+                                return item.fish.value !== i.fish.value;
+                              })
+                            );
+                          }}
                         >
-                          <path d="M14.59 8L12 10.59 9.41 8 8 9.41 10.59 12 8 14.59 9.41 16 12 13.41 14.59 16 16 14.59 13.41 12 16 9.41 14.59 8zM12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
-                        </svg>
-                      </button>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            className="w-8 h-8 text-white fill-current"
+                          >
+                            <path d="M14.59 8L12 10.59 9.41 8 8 9.41 10.59 12 8 14.59 9.41 16 12 13.41 14.59 16 16 14.59 13.41 12 16 9.41 14.59 8zM12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
+                          </svg>
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        className="w-full py-1 text-sm leading-3 text-center text-gray-900 border border-gray-400 form-input"
+                        defaultValue={i.amount}
+                        onChange={(e) =>
+                          handleAmountChange(i.fish.value, e.target.value)
+                        }
+                      />
                     </div>
                   ))}
                 </div>
@@ -282,38 +240,68 @@ const Index = () => {
                   {isLoading ? "LOADING..." : "CALCULATE"}
                 </button>
 
-                {Object.entries(strats).map(([key, value]: [any, any]) => (
-                  <div className="pt-3" key={key}>
-                    <div className="flex items-start justify-between">
-                      <div className="flex flex-col text-sm font-medium tracking-wide uppercase">
-                        <span>{key}</span>
-                        <ul className="text-xs normal-case list-disc list-inside">
-                          {Object.entries((value as any).details).map(
-                            ([k, v]) => {
-                              console.log(k, v);
-                              return (
-                                <li key={k}>
-                                  {Fishes.find((f) => f.ID === k).Name} x {v}
-                                </li>
-                              );
-                            }
-                          )}
-                        </ul>
-                      </div>
-                      <span
-                        className={classnames(
-                          "text-sm font-semibold tracking-widest",
-                          {
-                            "text-green-600": value.profit > -1,
-                            "text-red-600": value.profit < 0,
-                          }
-                        )}
-                      >
-                        {value.profit}
-                      </span>
-                    </div>
+                {strats.length > 0 && (
+                  <div className="pt-3">
+                    <table className="w-full text-right table-auto">
+                      <thead className="border-b">
+                        <tr>
+                          <th className="px-4 py-2 text-center">Item</th>
+                          <th className="px-4 py-2">Raw Sell</th>
+                          <th className="px-4 py-2">Chopped Sell</th>
+                          <th className="px-4 py-2">Best</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-sm font-medium text-gray-900">
+                        {strats.map((item) => (
+                          <tr key={item.id}>
+                            <td className="flex items-center justify-center px-4 py-2 text-center">
+                              <img
+                                className="object-cover w-16 transition-opacity duration-200 ease-in-out group-hover:opacity-0"
+                                src={`https://gameinfo.albiononline.com/api/gameinfo/items/${item.id}`}
+                                alt="test"
+                              />
+                              x {item.amount}
+                            </td>
+                            <td className="px-4 py-2">
+                              {formatNumber(item.raw)}
+                            </td>
+                            <td className="px-4 py-2">
+                              {formatNumber(item.chopped)}
+                            </td>
+                            <td className="px-4 py-2">
+                              {formatNumber(item.best)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="text-sm font-semibold text-gray-900 border-t">
+                        <tr>
+                          <td className="flex items-center justify-center px-4 py-2 text-center">
+                            Total
+                          </td>
+                          <td className="px-4 py-2">
+                            {formatNumber(
+                              strats.reduce((acc, item) => acc + item.raw, 0)
+                            )}
+                          </td>
+                          <td className="px-4 py-2">
+                            {formatNumber(
+                              strats.reduce(
+                                (acc, item) => acc + item.chopped,
+                                0
+                              )
+                            )}
+                          </td>
+                          <td className="px-4 py-2">
+                            {formatNumber(
+                              strats.reduce((acc, item) => acc + item.best, 0)
+                            )}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </div>
