@@ -97,12 +97,9 @@ const Index = () => {
         0.94;
 
       let choppedPrice = 0;
-      if (parseInt(item.fish.data["Chopped Fish"]) > 0) {
-        const choppedFishAmount = parseInt(
-          items.find((i) => i.fish.value === item.fish.value)?.amount ?? "0"
-        );
-
-        choppedPrice = item.amount * choppedFishAmount * choppedFishPrice * 0.94;
+      const choppedAmount = parseInt(item.fish.data["Chopped Fish"])
+      if (choppedAmount > 0) {
+        choppedPrice = parseInt(item.amount) * choppedAmount * choppedFishPrice * 0.94;
       }
 
       return {
