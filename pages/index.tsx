@@ -102,7 +102,7 @@ const Index = () => {
           items.find((i) => i.fish.value === item.fish.value)?.amount ?? "0"
         );
 
-        choppedPrice = choppedFishAmount * choppedFishPrice;
+        choppedPrice = item.amount * choppedFishAmount * choppedFishPrice * 0.94;
       }
 
       return {
